@@ -28,36 +28,38 @@ def get_restaurants():
 
 @app.route("/restaurants/<int:id>", methods=["GET"])
 def get_restaurant(id):
-    restaurant = Restaurant.query.get(id)
-    if restaurant:
-        restaurant_dict = restaurant.to_dict()
-        restaurant_dict["restaurant_pizzas"] = [
-            {
-                "id": rp.id,
-                "pizza_id": rp.pizza_id,
-                "price": rp.price,
-                "restaurant_id": rp.restaurant_id,
-                "pizza": {
-                    "id": rp.pizza.id,
-                    "name": rp.pizza.name,
-                    "ingredients": rp.pizza.ingredients,
+    with db.session() as session:
+        restaurant = session.get(Restaurant, id)
+        if restaurant:
+            restaurant_dict = restaurant.to_dict()
+            restaurant_dict["restaurant_pizzas"] = [
+                {
+                    "id": rp.id,
+                    "pizza_id": rp.pizza_id,
+                    "price": rp.price,
+                    "restaurant_id": rp.restaurant_id,
+                    "pizza": {
+                        "id": rp.pizza.id,
+                        "name": rp.pizza.name,
+                        "ingredients": rp.pizza.ingredients,
+                    }
                 }
-            }
-            for rp in restaurant.restaurant_pizzas
-        ]
-        return jsonify(restaurant_dict)
-    else:
-        return jsonify({"error": "Restaurant not found"}), 404
+                for rp in restaurant.restaurant_pizzas
+            ]
+            return jsonify(restaurant_dict)
+        else:
+            return jsonify({"error": "Restaurant not found"}), 404
 
 @app.route("/restaurants/<int:id>", methods=["DELETE"])
 def delete_restaurant(id):
-    restaurant = Restaurant.query.get(id)
-    if restaurant:
-        db.session.delete(restaurant)
-        db.session.commit()
-        return '', 204
-    else:
-        return jsonify({"error": "Restaurant not found"}), 404
+    with db.session() as session:
+        restaurant = session.get(Restaurant, id)
+        if restaurant:
+            session.delete(restaurant)
+            session.commit()
+            return '', 204
+        else:
+            return jsonify({"error": "Restaurant not found"}), 404
 
 @app.route("/pizzas", methods=["GET"])
 def get_pizzas():
@@ -68,7 +70,7 @@ def get_pizzas():
 def create_restaurant_pizza():
     data = request.get_json()
     if 'price' not in data or data['price'] < 1 or data['price'] > 30:
-        return jsonify({"errors": ["Price must be between 1 and 30"]}), 400
+        return jsonify({"errors": ["validation errors"]}), 400
     try:
         new_restaurant_pizza = RestaurantPizza(
             price=data['price'], pizza_id=data['pizza_id'], restaurant_id=data['restaurant_id'])
@@ -77,7 +79,7 @@ def create_restaurant_pizza():
 
         restaurant_pizza_dict = new_restaurant_pizza.to_dict()
         restaurant_pizza_dict["pizza"] = new_restaurant_pizza.pizza.to_dict()
-        restaurant_pizza_dict["restaurant"] = new_restaurant_pizza.restaurant.to_dict()  # Add this line
+        restaurant_pizza_dict["restaurant"] = new_restaurant_pizza.restaurant.to_dict()
 
         return jsonify(restaurant_pizza_dict), 201
     except Exception as e:
